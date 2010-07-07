@@ -2,8 +2,8 @@
 
 <product productid="psi_forumfilter" active="1">
 	<title>Selective Forum Filter</title>
-	<description>Created By VisionScripts (www.visionscripts.com)</description>
-	<version>1.1.0</version>
+	<description>Modified by DaniilM (Created By VisionScripts)</description>
+	<version>2.0.0</version>
 	<url><![CDATA[http://www.vbulletin.org/forum/misc.php?do=producthelp&pid=psi_forumfilter]]></url>
 	<versioncheckurl><![CDATA[http://www.vbulletin.org/forum/misc.php?do=productcheck&pid=psi_forumfilter]]></versioncheckurl>
 	<apm_releasedate>0</apm_releasedate>
@@ -14,18 +14,6 @@
 	<dependencies>
 	</dependencies>
 	<codes>
-		<code version="*">
-			<installcode><![CDATA[if ($vbulletin->products['tms'])
-{
-	require_once(DIR . '/includes/adminfunctions_templateedits.php');
-	install_templateedits($info, $arr, $active);
-}]]></installcode>
-			<uninstallcode><![CDATA[if ($vbulletin->products['tms'])
-{
-	require_once(DIR . '/includes/adminfunctions_templateedits.php');
-	uninstall_templateedits($vbulletin->GPC['productid']);
-}]]></uninstallcode>
-		</code>
 		<code version="9.9.9">
 			<installcode><![CDATA[// hide errors
 $db->hide_errors();
@@ -70,17 +58,19 @@ if (vB_Bitfield_Builder::build(false) !== false)
 		</code>
 	</codes>
 	<templates>
-		<template name="modifyoptions_excludeforums" templatetype="template" date="1278152544" username="DaniilM" version=""><![CDATA[<fieldset class="fieldset">
-<legend>$vbphrase[exclude_forums_title]</legend>
-	<div>$vbphrase[exclude_forums_desc_1]</div>
-	<br />
-	<label for="sel_excludeforumids">$vbphrase[exclude_forums_desc_2]</label>
+		<template name="modifyoptions_excludeforums" templatetype="template" date="1278430121" username="DaniilM" version="2.0.0"><![CDATA[<div class="blockrow">
+	<label for="sel_excludeforumids">{vb:rawphrase exclude_forums_title}</label>
+	<p class="description" for="sel_excludeforumids">{vb:rawphrase exclude_forums_desc_1}<br/>{vb:rawphrase exclude_forums_desc_2}</p>
 	<select style="width: 100%" size="13" name="excludeforumids[]" id="sel_excludeforumids" multiple="multiple">
-		<option value="">$vbphrase[exclude_none]</option>
-		$optoutforumbits
+		<option value="">{vb:rawphrase exclude_none}</option>
+		{vb:raw optoutforumbits}
 	</select>
-</fieldset>]]></template>
+</div>]]></template>
 	</templates>
+	<stylevardfns>
+	</stylevardfns>
+	<stylevars>
+	</stylevars>
 	<plugins>
 		<plugin active="1" executionorder="5">
 			<title>SFF: Suppress Display of Excluded Forums</title>
@@ -100,9 +90,7 @@ foreach ($excludeforumids AS $forumid)
 			<hookname>cache_templates</hookname>
 			<phpcode><![CDATA[if (THIS_SCRIPT == 'profile')
 {
-	$globaltemplates = array_merge($globaltemplates, array(
-		'modifyoptions_excludeforums',
-	));
+        $cache[] = 'modifyoptions_excludeforums';
 }]]></phpcode>
 		</plugin>
 		<plugin active="1" executionorder="5">
@@ -146,7 +134,7 @@ foreach ($excludeforumids AS $forumid)
 	{
 		return false;
 	}
-/*
+/* VBSEO patch
 	if (trim($forum['link']))
 	{
 		return false;
@@ -202,26 +190,17 @@ foreach ($sel_excludeforumids AS $forumid)
 	{
 		continue;
 	}
-
-	$optionvalue = $forumid;
-	$optiontitle = $forum['depthmark'] . ' ' . $forum['title_clean'];
-	$optionclass = 'fjdpth' . (($forum['depth'] > 4) ? '4' : $forum['depth']);
-
-	if (in_array($forumid, $excludeforumids))
-	{
-		$optionselected = 'selected="selected"';
-	}
-	else
-	{
-		$optionselected = '';
-	}
-
-	eval('$optoutforumbits .= "' . fetch_template('option') . '";');
+	$tmpl = vB_Template::create('option');
+	$tmpl->register('optionvalue', $forumid);
+	$tmpl->register('optionclass', 'fjdpth' . (($forum['depth'] > 4) ? '4' : $forum['depth']));
+	$tmpl->register('optionselected', (in_array($forumid, $excludeforumids)) ? 'selected="selected"' : '');
+	$tmpl->register('optiontitle', $forum['depthmark'] . ' ' . $forum['title_clean']);
+	$optoutforumbits .= $tmpl->render();
 }
-
-$find_string = '$customfields[other]';
-$add_string = fetch_template('modifyoptions_excludeforums');
-$vbulletin->templatecache['modifyoptions'] = str_replace($find_string, $find_string . $add_string, $vbulletin->templatecache['modifyoptions']);]]></phpcode>
+$tmpl = vB_Template::create('modifyoptions_excludeforums');
+$tmpl->register('optoutforumbits', $optoutforumbits);
+$template_hook['usercp_options_other'] .= $tmpl->render();
+unset($tmpl);]]></phpcode>
 		</plugin>
 		<plugin active="1" executionorder="5">
 			<title>SFF: Process User Selection</title>
@@ -241,7 +220,7 @@ $userdata->usertextfield['excludeforumids'] = implode(',', $excludeforumids);]]>
 		</plugin>
 		<plugin active="1" executionorder="5">
 			<title>SFF: Exclude Forums From Search</title>
-			<hookname>search_getnew_start</hookname>
+			<hookname>search_start</hookname>
 			<phpcode><![CDATA[if (!$vbulletin->userinfo['userid'])
 {
 	$vbulletin->userinfo['excludeforumids'] = '';
@@ -259,13 +238,13 @@ else
 	</plugins>
 	<phrases>
 		<phrasetype name="Forum-Related" fieldname="forum">
-			<phrase name="exclude_excludable" date="1164302810" username="admin" version="1.0.2"><![CDATA[Can Be Excluded]]></phrase>
+			<phrase name="exclude_excludable" date="1278321493" username="DaniilM" version=""><![CDATA[Can Be Excluded]]></phrase>
 		</phrasetype>
 		<phrasetype name="User Tools (global)" fieldname="user">
-			<phrase name="exclude_forums_desc_1" date="1164302810" username="admin" version="1.0.2"><![CDATA[Here you can select any number of forums to exclude from the forums list, from "get new" search and from "get daily" search.]]></phrase>
-			<phrase name="exclude_forums_desc_2" date="1164302810" username="admin" version="1.0.2"><![CDATA[To select multiple forums, press and hold CTRL key while clicking on the forum titles. To clear exclusion, select "Reset Exclusion" without holding CTRL key.]]></phrase>
-			<phrase name="exclude_forums_title" date="1164302810" username="admin" version="1.0.2"><![CDATA[Forums To Exclude From View]]></phrase>
-			<phrase name="exclude_none" date="1164302810" username="admin" version="1.0.2"><![CDATA[[Reset Exclusion]]]></phrase>
+			<phrase name="exclude_forums_desc_1" date="1278430209" username="DaniilM" version=""><![CDATA[Here you can select any number of forums to exclude from the forums list, from "get new" search and from "get daily" search.]]></phrase>
+			<phrase name="exclude_forums_desc_2" date="1278174916" username="DaniilM" version=""><![CDATA[To select multiple forums, press and hold CTRL key while clicking on the forum titles. To clear exclusion, select "Reset Exclusion" without holding CTRL key.]]></phrase>
+			<phrase name="exclude_forums_title" date="1278174965" username="DaniilM" version=""><![CDATA[Forums To Exclude From View]]></phrase>
+			<phrase name="exclude_none" date="1278175014" username="DaniilM" version=""><![CDATA[[Reset Exclusion]]]></phrase>
 		</phrasetype>
 	</phrases>
 	<options>
@@ -277,20 +256,5 @@ else
 	<faqentries>
 	</faqentries>
 	<templateedits>
-		<templateedit template="modifyoptions" varname="selective_forum_filter" username="Dimit" version="3.8.0 Alpha 1" dateline="1236957817" searchorder="5" active="0">
-			<title>Selective Forum Filter</title>
-			<searchstr><![CDATA[$customfields[other]]]></searchstr>
-			<replacestr><![CDATA[$customfields[other]
-			<fieldset class="fieldset">
-			<legend>$vbphrase[exclude_forums_title]</legend>
-				<div>$vbphrase[exclude_forums_desc_1]</div>
-				<br />
-				<label for="sel_excludeforumids">$vbphrase[exclude_forums_desc_2]</label>
-				<select style="width: 100%" size="13" name="excludeforumids[]" id="sel_excludeforumids" multiple="multiple">
-					<option value="">$vbphrase[exclude_none]</option>
-					$optoutforumbits
-				</select>
-			</fieldset>]]></replacestr>
-		</templateedit>
 	</templateedits>
 </product>
